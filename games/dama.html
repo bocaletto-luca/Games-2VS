@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dama - Release Definitiva</title>
+  <style>
+    /* Stili globali per il modulo Dama */
+    body {
+      background-color: #fff8e1;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    /* Contenitore della board: griglia 8x8 */
+    #damaBoard {
+      width: 480px;
+      margin: 20px auto;
+      display: grid;
+      grid-template-columns: repeat(8, 60px);
+      grid-template-rows: repeat(8, 60px);
+      border: 2px solid #333;
+    }
+    /* Celle della board */
+    .cell {
+      width: 60px;
+      height: 60px;
+      position: relative;
+      box-sizing: border-box;
+      transition: background-color 0.3s;
+    }
+    .light-square {
+      background-color: #eee;
+    }
+    .dark-square {
+      background-color: #555;
+      cursor: pointer;
+    }
+    /* Evidenziazione della cella selezionata e delle mosse valide */
+    .selected {
+      outline: 3px solid yellow;
+    }
+    .move-highlight {
+      background-color: rgba(0, 255, 0, 0.3) !important;
+    }
+    /* Stili per le pedine */
+    .piece {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      position: absolute;
+      top: 0; bottom: 0; left: 0; right: 0;
+      margin: auto;
+      border: 2px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #fff;
+      transition: box-shadow 0.3s;
+    }
+    .piece.red { background-color: red; }
+    .piece.blue { background-color: blue; }
+    .piece.king {
+      box-shadow: 0 0 0 3px gold inset;
+      font-size: 1.2rem;
+      /* Visualizza la "K" per King */
+      font-weight: bold;
+    }
+    /* Messaggio di stato */
+    #damaMessage {
+      margin-top: 10px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #333;
+    }
+    /* Pulsanti */
+    .btn-custom {
+      margin: 5px;
+      padding: 10px 15px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    #undoButton {
+      background-color: #3498db;
+      color: #fff;
+    }
+    #undoButton:hover { background-color: #2980b9; }
+    #helpButton {
+      background-color: #2ecc71;
+      color: #fff;
+    }
+    #helpButton:hover { background-color: #27ae60; }
+    #recordButton {
+      background-color: #9b59b6;
+      color: #fff;
+    }
+    #recordButton:hover { background-color: #8e44ad; }
+    #closeButton {
+      background-color: #e74c3c;
+      color: #fff;
+    }
+    #closeButton:hover { background-color: #c0392b; }
+    /* Responsive: per dispositivi piccoli */
+    @media (max-width: 576px) {
+      #damaBoard {
+        width: 320px;
+        grid-template-columns: repeat(8, 40px);
+        grid-template-rows: repeat(8, 40px);
+      }
+      .cell { width: 40px; height: 40px; }
+      .piece { width: 30px; height: 30px; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Dama - Release Definitiva</h2>
+  <div id="damaBoard"></div>
+  <div id="damaMessage">Turno: Rosso 😃</div>
+  <div class="btn-group" style="margin-top: 10px;">
+    <button id="undoButton" class="btn-custom">↶ Undo</button>
+    <button id="helpButton" class="btn-custom">ℹ️ Help</button>
+    <button id="recordButton" class="btn-custom">Record</button>
+    <button id="closeButton" class="btn-custom">✖ Chiudi</button>
+  </div>
+  
+  <script>
+    "use strict";
+    // ----- Modulo Dama: Implementazione Completa per Due Giocatori -----
+    
+    // Variabili globali per il gioco
+    let board = [];                // Matrice 8x8 rappresentante la board
+    let currentPlayer = "r";       // "r" per Rosso, "b" per Blu
+    let gameActive = true;         // Stato del gioco
+    let selectedPiece = null;      // Pedina selezionata, come { row, col }
+    let stateStack = [];           // Pila di stati per implementare l'Undo
+    
+    // Selezione degli elementi DOM
+    const boardContainer = document.getElementById("damaBoard");
+    const messageEl = document.getElementById("damaMessage");
+    const undoBtn = document.getElementById("undoButton");
+    const helpBtn = document.getElementById("helpButton");
+    const recordBtn = document.getElementById("recordButton");
+    const closeBtn = document.getElementById("closeButton");
+    
+    // Event listener per Undo, Help, Record e Chiudi
+    undoBtn.addEventListener("click", undoMove);
+    helpBtn.addEventListener("click", showHelp);
+    recordBtn.addEventListener("click", showRecord);
+    closeBtn.addEventListener("click", () => {
+      if(confirm("Vuoi abbandonare questa sfida?")) {
+        window.parent.closeGame();
+      }
+    });
+    
+    // Salva lo stato corrente per Undo (copia profonda dello stato: board + currentPlayer)
+    function saveState() {
+      const state = {
+        board: JSON.parse(JSON.stringify(board)),
+        currentPlayer: currentPlayer
+      };
+      stateStack.push(state);
+    }
+    
+    // Funzione Undo: ripristina lo stato precedente
+    function undoMove() {
+      if(stateStack.length > 0) {
+        const prevState = stateStack.pop();
+        board = prevState.board;
+        currentPlayer = prevState.currentPlayer;
+        gameActive = true;
+        selectedPiece = null;
+        updateMessage(`Turno: ${currentPlayer === "r" ? "Rosso 😃" : "Blu 😊"}`);
+        removeHighlights();
+        drawBoard();
+      } else {
+        alert("Nessuna mossa da annullare!");
+      }
+    }
+    
+    // Funzione Help: mostra le istruzioni complete di gioco
+    function showHelp() {
+      alert(
+        "DAMA - Istruzioni:\n\n" +
+        "• Gioca su una griglia 8x8: le celle scure sono giocabili.\n" +
+        "• Le pedine Rosse sono posizionate nelle righe 0-2, le Blu nelle righe 5-7.\n" +
+        "• Le pedine si muovono in diagonale. Se non sono King, il Rosso si muove verso righe maggiori e il Blu verso righe minori.\n" +
+        "• Per catturare una pedina avversaria, salta sulla cella successiva (che deve essere vuota).\n" +
+        "• Se, dopo una cattura, è possibile proseguire a catturare, il turno continua (cattura multipla obbligatoria).\n" +
+        "• Una pedina che raggiunge l'ultima riga opposta viene promossa a King (indicata da 'K' e bordo dorato) e può muoversi in entrambe le direzioni.\n" +
+        "• Usa 'Undo' per annullare l'ultima mossa.\n" +
+        "• Il gioco termina quando un giocatore non ha più mosse valide; il risultato viene comunicato automaticamente."
+      );
+    }
+    
+    // Funzione Record: visualizza e salva i record specifici di Dama in localStorage
+    function showRecord() {
+      // Recupera i record dai localStorage con chiave "damaRecords"
+      let records = JSON.parse(localStorage.getItem("damaRecords")) || [];
+      let text = "Record Dama:\n\n";
+      if(records.length === 0) {
+        text += "Nessun record salvato.";
+      } else {
+        records.forEach((rec, i) => {
+          text += `${i+1}. ${rec.date} - Vincitore: ${rec.winner}\n`;
+        });
+      }
+      alert(text);
+    }
+    
+    // Inizializzazione della board: crea la matrice 8x8 e posiziona le pedine
+    function initBoard() {
+      board = [];
+      for(let r = 0; r < 8; r++){
+        board[r] = [];
+        for(let c = 0; c < 8; c++){
+          board[r][c] = ((r + c) % 2 === 1) ? null : "light";
+        }
+      }
+      // Posiziona le pedine Rosse (righe 0-2)
+      for(let r = 0; r < 3; r++){
+        for(let c = 0; c < 8; c++){
+          if(((r + c) % 2 === 1)) {
+            board[r][c] = { player: "r", king: false };
+          }
+        }
+      }
+      // Posiziona le pedine Blu (righe 5-7)
+      for(let r = 5; r < 8; r++){
+        for(let c = 0; c < 8; c++){
+          if(((r + c) % 2 === 1)) {
+            board[r][c] = { player: "b", king: false };
+          }
+        }
+      }
+      currentPlayer = "r";
+      gameActive = true;
+      selectedPiece = null;
+      stateStack = [];
+      updateMessage("Turno: Rosso 😃");
+    }
+    
+    // Disegna la board nel contenitore "damaBoard"
+    function drawBoard() {
+      boardContainer.innerHTML = "";
+      for(let r = 0; r < 8; r++){
+        for(let c = 0; c < 8; c++){
+          const cellDiv = document.createElement("div");
+          cellDiv.classList.add("cell");
+          if((r + c) % 2 === 1) {
+            cellDiv.classList.add("dark-square");
+            cellDiv.dataset.row = r;
+            cellDiv.dataset.col = c;
+            cellDiv.addEventListener("click", onCellClick);
+          } else {
+            cellDiv.classList.add("light-square");
+          }
+          const cellData = board[r][c];
+          if(cellData && cellData !== "light") {
+            const pieceDiv = document.createElement("div");
+            pieceDiv.classList.add("piece");
+            pieceDiv.classList.add(cellData.player === "r" ? "red" : "blue");
+            if(cellData.king) {
+              pieceDiv.classList.add("king");
+              pieceDiv.innerText = "K";
+            }
+            cellDiv.appendChild(pieceDiv);
+          }
+          boardContainer.appendChild(cellDiv);
+        }
+      }
+    }
+    
+    // Aggiorna il messaggio di stato
+    function updateMessage(text) {
+      messageEl.innerText = text;
+    }
+    
+    // Rimuove le evidenziazioni dalle celle (click, mosse valide)
+    function removeHighlights() {
+      document.querySelectorAll(".cell").forEach(cell => {
+        cell.classList.remove("selected");
+        cell.classList.remove("move-highlight");
+      });
+    }
+    
+    // Evidenzia le celle in cui è possibile muovere (aggiunge classe "move-highlight")
+    function highlightPossibleMoves(moves) {
+      removeHighlights();
+      moves.forEach(move => {
+        const cell = document.querySelector(`.cell[data-row="${move.destRow}"][data-col="${move.destCol}"]`);
+        if(cell) { cell.classList.add("move-highlight"); }
+      });
+    }
+    
+    // Gestore del click su una cella giocabile
+    function onCellClick(e) {
+      if(!gameActive) return;
+      const r = parseInt(e.currentTarget.dataset.row);
+      const c = parseInt(e.currentTarget.dataset.col);
+      const cellData = board[r][c];
+      // Se la cella contiene una pedina del giocatore corrente, la seleziona
+      if(cellData && cellData !== "light" && cellData.player === currentPlayer) {
+        selectedPiece = { row: r, col: c };
+        removeHighlights();
+        e.currentTarget.classList.add("selected");
+        const legalMoves = getLegalMoves(r, c);
+        highlightPossibleMoves(legalMoves);
+      }
+      // Se la cella è vuota ed esiste una pedina selezionata, controlla se la mossa è valida
+      else if(!cellData && selectedPiece) {
+        const legalMoves = getLegalMoves(selectedPiece.row, selectedPiece.col);
+        const move = legalMoves.find(m => m.destRow === r && m.destCol === c);
+        if(move) {
+          saveState();
+          removeHighlights();
+          performMove(selectedPiece.row, selectedPiece.col, r, c, move);
+          selectedPiece = null;
+        }
+      }
+    }
+    
+    // Calcola le mosse legali per la pedina in (r, c)
+    function getLegalMoves(r, c) {
+      const piece = board[r][c];
+      if(!piece) return [];
+      let moves = [];
+      let directions = [];
+      if(piece.king) {
+        directions = [[1,1], [1,-1], [-1,1], [-1,-1]];
+      } else {
+        directions = (piece.player === "r") ? [[1,1], [1,-1]] : [[-1,1], [-1,-1]];
+      }
+      // Mossa semplice: se la cella adiacente è vuota
+      directions.forEach(([dr, dc]) => {
+        const newRow = r + dr;
+        const newCol = c + dc;
+        if(isInside(newRow, newCol) && !board[newRow][newCol]) {
+          moves.push({ destRow: newRow, destCol: newCol, capture: false });
+        }
+      });
+      // Mossa di cattura: se la cella intermedia contiene una pedina nemica e quella successiva è vuota
+      directions.forEach(([dr, dc]) => {
+        const midRow = r + dr, midCol = c + dc;
+        const destRow = r + 2*dr, destCol = c + 2*dc;
+        if(isInside(midRow, midCol) && isInside(destRow, destCol)) {
+          const midCell = board[midRow][midCol];
+          if(midCell && midCell !== "light" && midCell.player !== piece.player && !board[destRow][destCol]) {
+            moves.push({ destRow: destRow, destCol: destCol, capture: true, captured: { row: midRow, col: midCol } });
+          }
+        }
+      });
+      return moves;
+    }
+    
+    // Verifica che la cella (r,c) sia all'interno della board
+    function isInside(r, c) {
+      return r >= 0 && r < 8 && c >= 0 && c < 8;
+    }
+    
+    // Esegue la mossa dalla cella (fromR, fromC) alla cella (toR, toC)
+    // Se la mossa prevede una cattura, viene rimossa la pedina nemica.
+    // Dopo una cattura, controlla se è possibile continuare a catturare (cattura multipla).
+    function performMove(fromR, fromC, toR, toC, move) {
+      board[toR][toC] = board[fromR][fromC];
+      board[fromR][fromC] = null;
+      if(move.capture) {
+        board[move.captured.row][move.captured.col] = null;
+      }
+      let piece = board[toR][toC];
+      // Promozione: se la pedina non è king e raggiunge la fine (Rosso alla riga 7, Blu a riga 0)
+      if(piece && !piece.king) {
+        if(piece.player === "r" && toR === 7) { piece.king = true; }
+        if(piece.player === "b" && toR === 0) { piece.king = true; }
+      }
+      drawBoard();
+      // Se è stata effettuata una cattura, controlla possibili catture consecutive
+      if(move.capture) {
+        let furtherMoves = getLegalMoves(toR, toC).filter(m => m.capture);
+        if(furtherMoves.length > 0) {
+          updateMessage(`Cattura multipla! Continua con la stessa pedina (${currentPlayer === "r" ? "Rosso" : "Blu"})`);
+          highlightPossibleMoves(furtherMoves);
+          selectedPiece = { row: toR, col: toC };
+          return; // Mantiene il turno
+        }
+      }
+      // Se non ci sono ulteriori catture, cambia turno
+      if(isGameOver()){
+        gameActive = false;
+        let result = "draw";
+        if(!playerHasMoves("r")) { result = "blue"; }
+        else if(!playerHasMoves("b")) { result = "red"; }
+        updateMessage(`Gioco terminato! ${result === "red" ? "Rosso 😃" : result === "blue" ? "Blu 😊" : "Pareggio 😐"}`);
+        setTimeout(() => { window.parent.reportGameResult(result); }, 1000);
+      } else {
+        currentPlayer = (currentPlayer === "r") ? "b" : "r";
+        updateMessage(`Turno: ${currentPlayer === "r" ? "Rosso 😃" : "Blu 😊"}`);
+      }
+    }
+    
+    // Verifica se un giocatore ha mosse
+    function playerHasMoves(player) {
+      for(let r = 0; r < 8; r++){
+        for(let c = 0; c < 8; c++){
+          const cell = board[r][c];
+          if(cell && cell !== "light" && cell.player === player) {
+            if(getLegalMoves(r, c).length > 0) return true;
+          }
+        }
+      }
+      return false;
+    }
+    
+    // Verifica se il gioco è finito (se un giocatore non ha mosse)
+    function isGameOver() {
+      return !playerHasMoves("r") || !playerHasMoves("b");
+    }
+    
+    // Funzione per inizializzare il gioco Dama; questa funzione verrà utilizzata dal controller globale
+    function initDama() {
+      initBoard();
+      drawBoard();
+      updateMessage(`Turno: ${currentPlayer === "r" ? "Rosso 😃" : "Blu 😊"}`);
+    }
+    
+    // Chiamata iniziale per avviare il modulo Dama
+    initDama();
+    
+    // Esposizione per il controller globale
+    window.initDama = initDama;
+    window.helpDama = showHelp;
+    
+    // ----- FINE Modulo Dama -----
+  </script>
+</body>
+</html>
