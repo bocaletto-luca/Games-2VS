@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2VS | Series Competition 😊 | By Bocaletto Luca</title>
+  <!-- Bootstrap per stili di base -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    /* Stili globali per l'applicazione */
+    body {
+      background-color: #f1f1f1;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0 10px;
+    }
+    h1, h2, h3 {
+      color: #333;
+    }
+    #app {
+      max-width: 800px;
+      margin: 20px auto;
+    }
+    /* Le sezioni (Hub, Competizione, Finale, Record) sono nascoste di default. 
+       Verrà mostrata solo quella attiva (classe "active"). */
+    .section {
+      display: none;
+    }
+    .section.active {
+      display: block;
+    }
+    /* Hub: configurazione della competizione */
+    #hubSection {
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .btn-custom {
+      border-radius: 20px;
+      padding: 10px 20px;
+      margin: 5px;
+    }
+    /* Competizione: area in cui verrà caricato il modulo di gioco */
+    #competitionSection {
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      margin-bottom: 20px;
+    }
+    #scoreBoard, #gameInfo {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+      /* ... stili globali ... */
+  #gameContainer {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fff;
+    /* Rimuovo padding che potrebbe limitare la visualizzazione completa */
+    padding: 0;
+    margin: 0 auto;
+    width: 100%;
+    height: 600px; /* oppure un'altezza dinamica in base alle necessità */
+    overflow: hidden; /* nasconde le barre di scorrimento */
+  }
+  /* Posiziona l'iframe in modo che copra tutto il contenitore */
+  #gameContainer iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    overflow: hidden;
+  }
+    /* Finale: sezione per mostrare il risultato */
+    #finalSection {
+      text-align: center;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      margin-bottom: 20px;
+    }
+    /* Record: sezione per visualizzare lo storico delle competizioni */
+    #recordsSection {
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+    }
+    @media (max-width: 576px) {
+      #gameContainer {
+        min-height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- HUB Section: configurazione -->
+    <div id="hubSection" class="section active">
+      <h1 class="mb-3">Series Competition 😊</h1>
+      <button id="hubHelpButton" class="btn btn-info btn-custom">ℹ️ Help Competizione</button>
+      <form id="competitionForm" class="mt-3">
+        <div class="form-group">
+          <label for="player1Name">Nome Giocatore 1 (Rosso)</label>
+          <input type="text" id="player1Name" class="form-control" placeholder="Inserisci il nome" required>
+        </div>
+        <div class="form-group">
+          <label for="player2Name">Nome Giocatore 2 (Blu)</label>
+          <input type="text" id="player2Name" class="form-control" placeholder="Inserisci il nome" required>
+        </div>
+        <p class="mb-2">
+          La competizione consiste in 4 sfide reali: Tris, Dama, Indovina la Coppia e Gioco dell'Oca.<br>
+          Ogni gioco verrà eseguito automaticamente e il risultato verrà registrato.<br>
+          Al termine, il punteggio globale determinerà il vincitore.
+        </p>
+        <button type="submit" class="btn btn-success btn-custom">Avvia Competizione 🚀</button>
+      </form>
+    </div>
+    
+    <!-- COMPETITION Section: visualizza il modulo di gioco corrente -->
+    <div id="competitionSection" class="section">
+      <div id="scoreBoard"></div>
+      <div id="gameInfo"></div>
+      <div id="gameContainer"></div>
+      <div class="text-center mt-2">
+        <button id="gameHelpButton" class="btn btn-info btn-custom">ℹ️ Help Gioco</button>
+        <button id="gameCloseButton" class="btn btn-warning btn-custom">✖ Chiudi Gioco</button>
+      </div>
+    </div>
+    
+    <!-- FINAL Section: risultato finale della competizione -->
+    <div id="finalSection" class="section">
+      <h2>Competizione Terminata 🎉</h2>
+      <div id="finalMessage"></div>
+      <button id="finalBackButton" class="btn btn-primary btn-custom">Torna all'Hub</button>
+    </div>
+    
+    <!-- RECORD Section: storico delle competizioni -->
+    <div id="recordsSection" class="section">
+      <h3>Storico delle Competizioni</h3>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Giocatori</th>
+            <th>Punteggio</th>
+            <th>Vincitore</th>
+          </tr>
+        </thead>
+        <tbody id="recordsTableBody"></tbody>
+      </table>
+      <button id="recordsCloseButton" class="btn btn-secondary btn-custom">Chiudi Record</button>
+      <button id="downloadRecordsButton" class="btn btn-dark btn-custom">Download Record JSON</button>
+    </div>
+    
+    <!-- Pulsante per mostrare i record globali -->
+    <div class="text-center mb-3">
+      <button id="showRecordsButton" class="btn btn-info btn-custom">Visualizza Record 🔍</button>
+    </div>
+  </div>
+  
+  <!-- Inclusione del file main.js -->
+  <script src="main.js"></script>
+</body>
+</html>
