@@ -7,6 +7,8 @@
 ![Project Completed](https://img.shields.io/badge/Project-Completed-green?style=for-the-badge)
 ![GPLv3](https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge)
 
+[![Test Online](https://img.shields.io/badge/Test%20Online-Click%20Here-brightgreen?style=for-the-badge)](https://bocaletto-luca.github.io/Games-2VS/)
+
 ## Overview
 
 **2VS Web Game** is a browser‑based competitive platform that brings together a variety of mini-games into one exciting tournament experience. Two players go head‑to‑head in different challenges—from classic arcade titles to puzzle and strategy games—to prove their skills. The integrated scoring system tracks performance across games, making it a comprehensive competitive arena. All you need is your browser—no installation required.
